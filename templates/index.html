@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMeans Clustering App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>KMeans Clustering Visualization</h1>
+
+    <div>
+        <label for="n_clusters">Number of Clusters:</label>
+        <input type="number" id="n_clusters" value="3" min="2" max="10">
+        
+        <label for="init_method">Initialization Method:</label>
+        <select id="init_method">
+            <option value="random">Random</option>
+            <option value="farthest">Farthest First</option>
+            <option value="kmeans++">KMeans++</option>
+            <option value="manual">Manual</option>
+        </select>
+        
+        <button onclick="runKMeans()">Run KMeans</button>
+    </div>
+    
+    <div id="plot"></div>
+
+    <script>
+        async function runKMeans() {
+            const n_clusters = document.getElementById('n_clusters').value;
+            const init_method = document.getElementById('init_method').value;
+
+            // For now, generate random data points (will be updated to accept uploaded data)
+            const points = [...Array(300)].map(() => [Math.random() * 100, Math.random() * 100]);
+            
+            let manual_centroids = [];
+            if (init_method === 'manual') {
+                // For manual initialization, let users select centroids (stub)
+                manual_centroids = [[20, 20], [50, 50], [80, 80]];  // Placeholder for manual input
+            }
+
+            const response = await fetch('/run_kmeans', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ points, n_clusters, init_method, manual_centroids })
+            });
+
+            const data = await response.json();
+            const { centroids, labels } = data;
+            
+            // Create a plot with the points and centroids
+            const trace1 = {
+                x: points.map(p => p[0]),
+                y: points.map(p => p[1]),
+                mode: 'markers',
+                marker: {
+                    size: 12,
+                    color: labels,
+                    colorscale: 'Viridis'
+                },
+                type: 'scatter'
+            };
+            
+            const trace2 = {
+                x: centroids.map(c => c[0]),
+                y: centroids.map(c => c[1]),
+                mode: 'markers',
+                marker: {
+                    size: 16,
+                    color: 'red',
+                    symbol: 'x'
+                },
+                type: 'scatter'
+            };
+            
+            const data_plot = [trace1, trace2];
+            Plotly.newPlot('plot', data_plot);
+        }
+    </script>
+</body>
+</html>
