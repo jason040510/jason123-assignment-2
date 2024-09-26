@@ -1,29 +1,81 @@
+/* General body styling */
 body {
     font-family: Arial, sans-serif;
-    margin: 20px;
     background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
 }
 
+/* Heading */
 h1 {
+    color: #333;
+    font-size: 2em;
+}
+
+/* Styling the input fields */
+label {
+    font-size: 1.2em;
     color: #333;
 }
 
-div {
-    margin-bottom: 15px;
+input[type="number"],
+select {
+    padding: 8px;
+    font-size: 1em;
+    margin: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
+/* Styling the buttons */
 button {
-    background-color: #28a745;
-    color: white;
-    border: none;
     padding: 10px 20px;
+    font-size: 1em;
+    color: white;
+    background-color: #4CAF50;
+    border: none;
+    border-radius: 4px;
     cursor: pointer;
+    margin: 10px;
 }
 
 button:hover {
-    background-color: #218838;
+    background-color: #45a049;
 }
 
+/* Plot container */
 #plot {
     margin-top: 20px;
+    width: 90%;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+/* Media query to make the layout responsive */
+@media (max-width: 600px) {
+    h1 {
+        font-size: 1.5em;
+    }
+
+    button {
+        font-size: 0.9em;
+        padding: 8px 15px;
+    }
+
+    input[type="number"], select {
+        font-size: 0.9em;
+    }
+
+    #plot {
+        width: 100%;
+        margin: 0;
+    }
+}
+
+
+
