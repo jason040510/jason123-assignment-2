@@ -4,95 +4,164 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KMeans Clustering Algorithm</title>
-
-    <!-- Include Plotly from CDN -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            background-color: #f4f4f4;
+            padding: 20px;
             text-align: center;
         }
-
-        /* Increase the size of the plot while keeping it square */
-        #plot {
-            width: 800px;
-            height: 800px;
-            margin: 20px auto;
+        h1 {
+            color: #333;
         }
-
-        /* Add some spacing for buttons */
-        .controls {
-            margin-bottom: 20px;
+        button {
+            padding: 10px;
+            font-size: 14px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #plot {
+            width: 700px;  /* Increase the plot size for more precise matching */
+            height: 700px; /* Keep the plot square to maintain a 1:1 ratio */
+            margin: auto;
         }
     </style>
 </head>
 <body>
+    <h1>KMeans Clustering Algorithm</h1>
 
-    <!-- Add form inputs, buttons, and other content -->
-    <div class="controls">
-        <label for="n_clusters">Number of Clusters (k):</label>
-        <input type="number" id="n_clusters" value="3" min="2" max="10">
-        
-        <label for="init_method">Initialization Method:</label>
-        <select id="init_method">
-            <option value="random">Random</option>
-            <option value="farthest">Farthest First</option>
-            <option value="kmeans++">KMeans++</option>
-            <option value="manual">Manual</option>
-        </select>
+    <!-- Number of Clusters Input -->
+    <label for="n_clusters">Number of Clusters (k):</label>
+    <input type="number" id="n_clusters" value="3" min="2" max="10">
+    <br><br>
 
-        <!-- Add buttons -->
-        <button onclick="generateNewDataset()">Generate New Dataset</button>
-        <button onclick="stepKMeans()">Step Through KMeans</button>
-        <button onclick="runToConvergence()">Run to Convergence</button>
-        <button onclick="resetAlgorithm()">Reset</button>
-    </div>
+    <!-- Initialization Method Dropdown -->
+    <label for="init_method">Initialization Method:</label>
+    <select id="init_method" onchange="checkManualInit()">
+        <option value="random">Random</option>
+        <option value="farthest">Farthest First</option>
+        <option value="kmeans++">KMeans++</option>
+        <option value="manual">Manual</option>
+    </select>
+    <br><br>
 
-    <!-- Plotly graph container -->
+    <!-- Buttons -->
+    <button onclick="generateNewDataset()">Generate New Dataset</button>
+    <button onclick="stepKMeans()">Step Through KMeans</button>
+    <button onclick="runToConvergence()">Run to Convergence</button>
+    <button onclick="resetAlgorithm()">Reset Algorithm</button>
+
+    <!-- Visualization Plot -->
     <div id="plot"></div>
 
     <script>
         let points = [];
         let manual_centroids = [];
         let kmeans_initialized = false;
-        let selecting_centroids = false;
 
-        document.getElementById('init_method').addEventListener('change', function () {
-            const init_method = this.value;
-            if (init_method === 'manual') {
-                selecting_centroids = true;
-                manual_centroids = [];
-                alert('Please click on the graph to select centroids.');
-            } else {
-                selecting_centroids = false;
-            }
-        });
-
-        // Capturing exact mouse click for centroids on the plot
-        function captureManualCentroid(event) {
-            if (!selecting_centroids) return;
-
-            const plotDiv = document.getElementById('plot');
-            const rect = plotDiv.getBoundingClientRect();
-            const xPos = event.clientX - rect.left; // X coordinate relative to the plot
-            const yPos = event.clientY - rect.top;  // Y coordinate relative to the plot
-
-            const xAxis = plotDiv._fullLayout.xaxis;
-            const yAxis = plotDiv._fullLayout.yaxis;
-
-            // Translate pixel coordinates to data coordinates
-            const xValue = xAxis.p2c(xPos);
-            const yValue = yAxis.p2c(yPos);
-
-            console.log(`Manual centroid added at: (${xValue}, ${yValue})`);
-
-            manual_centroids.push([xValue, yValue]);
-            plotResults(points, manual_centroids, []);
+        // Function to generate a new random dataset
+        function generateNewDataset() {
+            points = [...Array(300)].map(() => [Math.random() * 20 - 10, Math.random() * 20 - 10]);
+            manual_centroids = [];  // Reset manual centroids
+            plotResults(points, [], []); // Clear previous plot
+            kmeans_initialized = false;
         }
 
-        // Plot the results using Plotly
+        // Check if manual initialization is selected and enable click-to-add centroids
+        function checkManualInit() {
+            const init_method = document.getElementById('init_method').value;
+            if (init_method === 'manual') {
+                document.getElementById('plot').addEventListener('click', addManualCentroid);
+            } else {
+                document.getElementById('plot').removeEventListener('click', addManualCentroid);
+            }
+        }
+
+        // Add manual centroids by clicking on the plot
+        function addManualCentroid(event) {
+            const rect = event.target.getBoundingClientRect();
+            const x = (event.clientX - rect.left) * 20 / rect.width - 10;
+            const y = 10 - (event.clientY - rect.top) * 20 / rect.height; // Y-axis is inverted
+            manual_centroids.push([x, y]);
+            
+            plotResults(points, manual_centroids, []);  // Show selected centroids on the plot
+        }
+
+        // Function to step through the KMeans algorithm
+        async function stepKMeans() {
+            const n_clusters = document.getElementById('n_clusters').value;
+            const init_method = document.getElementById('init_method').value;
+
+            if (!kmeans_initialized) {
+                await initializeKMeans();
+            }
+
+            const response = await fetch('/step_kmeans', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ points, n_clusters, init_method, manual_centroids })
+            });
+
+            const data = await response.json();
+            const { centroids, labels, converged } = data;
+
+            if (converged) {
+                alert('KMeans has converged!');
+            }
+
+            plotResults(points, centroids, labels);
+        }
+
+        // Function to run KMeans to convergence
+        async function runToConvergence() {
+            const n_clusters = document.getElementById('n_clusters').value;
+            const init_method = document.getElementById('init_method').value;
+
+            if (!kmeans_initialized) {
+                await initializeKMeans();
+            }
+
+            const response = await fetch('/run_to_convergence', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ points, n_clusters, init_method, manual_centroids })
+            });
+
+            const data = await response.json();
+            const { centroids, labels } = data;
+
+            plotResults(points, centroids, labels);
+            alert('KMeans has converged!');
+        }
+
+        // Initialize KMeans function
+        async function initializeKMeans() {
+            const n_clusters = document.getElementById('n_clusters').value;
+            const init_method = document.getElementById('init_method').value;
+
+            const response = await fetch('/run_kmeans', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ points, n_clusters, init_method, manual_centroids })
+            });
+
+            const data = await response.json();
+            const { centroids, labels } = data;
+
+            plotResults(points, centroids, labels);
+            kmeans_initialized = true;
+        }
+
+        // Function to reset the algorithm
+        async function resetAlgorithm() {
+            await fetch('/reset', { method: 'POST' });
+            manual_centroids = [];
+            plotResults(points, [], []);  // Only reset centroids, keep points on plot
+            kmeans_initialized = false;
+        }
+
+        // Plot the points and centroids using Plotly
         function plotResults(points, centroids, labels) {
             const tracePoints = {
                 x: points.map(p => p[0]),
@@ -123,96 +192,17 @@
             const data = traceCentroids ? [tracePoints, traceCentroids] : [tracePoints];
 
             const layout = {
-                xaxis: { range: [-10, 10], scaleanchor: "y", scaleratio: 1 },
+                xaxis: { range: [-10, 10], scaleanchor: "y", scaleratio: 1 },  // Lock aspect ratio
                 yaxis: { range: [-10, 10] },
-                title: 'KMeans Clustering Data',
-                width: 800,  // Make the plot larger
-                height: 800  // Make the plot larger
+                width: 700,  // Increase the plot size for better matching
+                height: 700, // Keep the plot square to maintain 1:1 ratio
+                title: 'KMeans Clustering',
             };
 
             Plotly.newPlot('plot', data, layout);
         }
 
-        // Event listener for mouse clicks on the plot
-        document.getElementById('plot').addEventListener('click', captureManualCentroid);
-
-        // KMeans and other functions (unchanged)
-        async function initializeKMeans() {
-            const n_clusters = document.getElementById('n_clusters').value;
-            const init_method = document.getElementById('init_method').value;
-
-            if (init_method === 'manual' && manual_centroids.length === 0) {
-                alert('Please select centroids manually by clicking on the graph.');
-                return;
-            }
-
-            const response = await fetch('/run_kmeans', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ points, n_clusters, init_method, manual_centroids })
-            });
-
-            const data = await response.json();
-            const { centroids, labels } = data;
-
-            plotResults(points, centroids, labels);
-            kmeans_initialized = true;
-        }
-
-        async function stepKMeans() {
-            if (!kmeans_initialized) {
-                await initializeKMeans();
-            }
-
-            const response = await fetch('/step_kmeans', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            const data = await response.json();
-            const { centroids, labels, converged } = data;
-
-            if (converged) {
-                alert('KMeans has converged!');
-            }
-
-            plotResults(points, centroids, labels);
-        }
-
-        async function runToConvergence() {
-            if (!kmeans_initialized) {
-                await initializeKMeans();
-            }
-
-            const response = await fetch('/run_to_convergence', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            const data = await response.json();
-            const { centroids, labels } = data;
-
-            plotResults(points, centroids, labels);
-            alert('KMeans has converged!');
-        }
-
-        async function generateNewDataset() {
-            points = [...Array(300)].map(() => [Math.random() * 20 - 10, Math.random() * 20 - 10]);
-            manual_centroids = [];
-            plotResults(points, [], []);
-            kmeans_initialized = false;
-        }
-
-        async function resetAlgorithm() {
-            await fetch('/reset', {
-                method: 'POST',
-            });
-
-            plotResults(points, [], []);
-            kmeans_initialized = false;
-            manual_centroids = [];
-        }
-
+        // Generate initial dataset on page load
         generateNewDataset();
     </script>
 </body>
