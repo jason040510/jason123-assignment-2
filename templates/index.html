@@ -175,7 +175,7 @@
                 name: 'Data Points',
                 type: 'scatter'
             };
-
+        
             const traceCentroids = centroids.length ? {
                 x: centroids.map(c => c[0]),
                 y: centroids.map(c => c[1]),
@@ -188,19 +188,25 @@
                 name: 'Centroids',
                 type: 'scatter'
             } : null;
-
+        
             const data = traceCentroids ? [tracePoints, traceCentroids] : [tracePoints];
-
+        
+            // Adjust the plot layout to eliminate extra space on the Y-axis
             const layout = {
-                xaxis: { range: [-10, 10], scaleanchor: "y", scaleratio: 1 },  // Lock aspect ratio
-                yaxis: { range: [-10, 10] },
-                width: 700,  // Increase the plot size for better matching
-                height: 700, // Keep the plot square to maintain 1:1 ratio
+                xaxis: { range: [-10, 10], scaleanchor: "y", scaleratio: 1 },  // Lock aspect ratio between axes
+                yaxis: { range: [-10, 10], constrain: "domain" },  // Constrain Y-axis to its domain (prevents extra space)
+                width: 700,  // Size of the plot
+                height: 700, // Ensure the plot remains square
                 title: 'KMeans Clustering',
+                margin: { t: 20, b: 50, l: 50, r: 20 },  // Adjust margins to avoid extra padding
+                showlegend: true,  // Optional: Keep the legend visible
             };
-
+        
             Plotly.newPlot('plot', data, layout);
         }
+        
+
+        
 
         // Generate initial dataset on page load
         generateNewDataset();
